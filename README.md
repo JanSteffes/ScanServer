@@ -23,3 +23,6 @@ OpenJDK Runtime Environment (build 1.8.0_232-8u232-b09-1~deb9u1-b09)
 OpenJDK Client VM (build 25.232-b09, mixed mode)
 
 
+Sample implementation of client (flutter): [scan_app](https://github.com/JanSteffes/scan_app)
+
+
