@@ -35,7 +35,7 @@ public abstract class APackageData implements IPackageData
 			OutputStream outputStream = socket.getOutputStream();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
 			ObjectOutputStream writer = new ObjectOutputStream(outputStream);
-			System.out.println("sending list files request...");
+			System.out.println("sending " + getClass().getName() + " request...");
 			writer.writeObject(this);
 			writer.flush();
 			System.out.println("wait for result...");

@@ -1,18 +1,21 @@
 
 package server;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -41,14 +44,22 @@ public class Server {
 	 */
 	private static int currentCounter = 0;
 	
+	private static SimpleDateFormat LogDateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+	
+	private static void log(String s)
+	{
+		s = LogDateFormat.format(new Date()) + " " + s;
+		System.out.println(s);
+	}
+	
 	public static void main(String[] args) {
 		ServerSocket ss = null;
 		try {
 			ss = new ServerSocket(Config.SERVER_PORT);
-			System.out.println("Server running");
+			log("Server running");
 
 		} catch (Exception e) {
-			System.out.println("Failure!");
+			log("Failure!");
 			System.exit(1);
 		}
 
@@ -56,9 +67,9 @@ public class Server {
 		while (running) {
 			Socket clientSocket = null;
 			try {
-				System.out.println("waiting for client..");
+				log("waiting for client..");
 				clientSocket = ss.accept();
-				System.out.println("Client connected!");
+				log("Client connected!");
 				// prepare streams
 				BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
 				ObjectInputStream inReader = new ObjectInputStream(clientSocket.getInputStream());
@@ -80,11 +91,11 @@ public class Server {
 					result = "" + scanToFile(scanFileData);
 					break;
 				}
-				System.out.println("returning result...");
+				log("returning result of action " + action + " ...");
 				writer.write("" + result);
 				writer.newLine();
 				writer.flush();
-				System.out.println("disconnecting");
+				log("disconnecting");
 				clientSocket.close();
 			} catch (Exception e) {
 				System.err.println("Exeption happend: " + e.getMessage());
@@ -132,31 +143,46 @@ public class Server {
 			
 			// Mergen:
 			// pdftk page1.pdf page2.pdf ... cat output result.pdf
-			String[] mergeCommand = { "pdftk", String.join(" ", fileNames) };
-			System.out.println("Will execute command: \"" + String.join(" ", mergeCommand) + "\"");
+			ArrayList<String> mergeCommandsList = new ArrayList<String>();
+			mergeCommandsList.add("pdftk");
+			mergeCommandsList.addAll(fileNames);
+			mergeCommandsList.add("cat");
+			mergeCommandsList.add("output");
+			mergeCommandsList.add(targetFile.getName());
+			String[] mergeCommands =mergeCommandsList.toArray(new String[0]);
+			
+//			String[] mergeCommand = { "pdftk", String.join(" ", fileNames), "cat output", targetFile.getName()};
+			log("Will execute command: \"" + String.join(" ", mergeCommands) + "\"");
 			ProcessBuilder pb = new ProcessBuilder();
-			Process mergeProcess;
-			mergeProcess = pb.directory(targetDir).command(mergeCommand).start();
-			// write result to file
-			InputStream in = mergeProcess.getInputStream();
-			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			byte[] mergeResultBytes;
-			byte[] buffer = new byte[8 * 1024];
-			int bytesRead = 0;
-			while ((bytesRead = in.read(buffer)) != -1) {
-				out.write(buffer, 0, bytesRead);
+			Process mergeProcess = pb.directory(targetDir).command(mergeCommands).start();
+			BufferedReader errorReader = new BufferedReader(new 
+				     InputStreamReader(mergeProcess.getErrorStream()));
+			// Read any errors from the attempted command
+			System.out.println("Here is the standard error of the command (if any):\n");
+			String s;
+			while ((s = errorReader.readLine()) != null) {
+			    System.out.println(s);
 			}
-			mergeResultBytes = out.toByteArray();
-			out.close();
+			// write result to file
+//			InputStream in = mergeProcess.getInputStream();
+//			ByteArrayOutputStream out = new ByteArrayOutputStream();
+//			byte[] mergeResultBytes;
+//			byte[] buffer = new byte[8 * 1024];
+//			int bytesRead = 0;
+//			while ((bytesRead = in.read(buffer)) != -1) {
+//				out.write(buffer, 0, bytesRead);
+//			}
+//			mergeResultBytes = out.toByteArray();
+//			out.close();
 			mergeProcess.waitFor();
-			mergeProcess.destroy();
-			in.close();
-			System.out.println("writing result to file...");
-			File tempTiffFile = Paths.get(targetFile.getAbsolutePath()).toFile();
-			FileOutputStream fos = new FileOutputStream(tempTiffFile);
-			fos.write(mergeResultBytes);
-			fos.flush();
-			fos.close();
+//			mergeProcess.destroy();
+//			in.close();
+//			log("writing result to file...");
+//			File mergeResultFile = Paths.get(targetFile.getAbsolutePath()).toFile();
+//			FileOutputStream fos = new FileOutputStream(mergeResultFile);
+//			fos.write(mergeResultBytes);
+//			fos.flush();
+//			fos.close();
 			return true;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -228,7 +254,7 @@ public class Server {
 
 			// scan
 			String[] scanCommand = { "scanimage", "--format=tiff", "--resolution", "" + resolution };
-			System.out.println("Will execute command: \"" + String.join(" ", scanCommand) + "\"");
+			log("Will execute command: \"" + String.join(" ", scanCommand) + "\"");
 			ProcessBuilder pb = new ProcessBuilder();
 			Process scanProcess;
 			scanProcess = pb.directory(targetDir).command(scanCommand).start();
@@ -248,7 +274,7 @@ public class Server {
 			in.close();
 
 			// write to tiff
-			System.out.println("writing result to file...");
+			log("writing result to file...");
 			File tempTiffFile = Paths.get(targetFilePath + "_temp.tiff").toFile();
 			FileOutputStream fos = new FileOutputStream(tempTiffFile);
 			fos.write(scanResultBytes);
@@ -256,30 +282,30 @@ public class Server {
 			fos.close();
 
 			// convert to pdf
-			System.out.println("convertig file to pdf...");
+			log("convertig file to pdf...");
 			File targetTempPdfFile = new File(targetFilePath + "_temp.pdf");
 			String[] pdfConvertCommand = { "tiff2pdf", "-o", targetTempPdfFile.getAbsolutePath(),
 					tempTiffFile.getAbsolutePath() };
-			System.out.println("Will execute command: \"" + String.join(" ", pdfConvertCommand) + "\"");
+			log("Will execute command: \"" + String.join(" ", pdfConvertCommand) + "\"");
 			Process convertProcess = pb.command(pdfConvertCommand).start();
 			convertProcess.waitFor();
 			// convert to postscript
-			System.out.println("convertig to postscript...");
+			log("convertig to postscript...");
 			File targetTempPsFile = Paths.get(targetFilePath + "_temp.ps").toFile();
 			String[] pdfConvertToPsCommand = { "pdftops", targetTempPdfFile.getAbsolutePath(),
 					targetTempPsFile.getAbsolutePath() };
-			System.out.println("Will execute command: \"" + String.join(" ", pdfConvertToPsCommand) + "\"");
+			log("Will execute command: \"" + String.join(" ", pdfConvertToPsCommand) + "\"");
 			Process convertToPsProcess = pb.command(pdfConvertToPsCommand).start();
 			convertToPsProcess.waitFor();
 
 			// convert to final file
 			String[] psConvertToPdfCommand = { "ps2pdf", targetTempPsFile.getAbsolutePath(),
 					targetFile.getAbsolutePath() };
-			System.out.println("Will execute command: \"" + String.join(" ", psConvertToPdfCommand) + "\"");
+			log("Will execute command: \"" + String.join(" ", psConvertToPdfCommand) + "\"");
 			Process convertToPdfProcess = pb.command(psConvertToPdfCommand).start();
 			convertToPdfProcess.waitFor();
 
-			System.out.println("Deleting temp files...");
+			log("Deleting temp files...");
 			targetTempPsFile.delete();
 			targetTempPdfFile.delete();
 			tempTiffFile.delete();

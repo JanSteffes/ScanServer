@@ -28,7 +28,7 @@ public class ClientTest {
 			String[] fileList = new PackageDataList().Execute().split(";");
 			
 			// scan
-			new PackageDataScan(1, "ClientTest_Scan").Execute();
+			//new PackageDataScan(1, "ClientTest_Scan").Execute();
 			
 			// scan again to merge later if not enough files are there
 			while (fileList.length < 3)
