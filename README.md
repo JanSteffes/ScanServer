@@ -34,3 +34,6 @@ Sample implementation of app-client (flutter): [scan_app](https://github.com/Jan
 * better/more specific logs?
 
 
+Sample implementation of client (flutter): [scan_app](https://github.com/JanSteffes/scan_app)
+
+
