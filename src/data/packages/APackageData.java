@@ -26,7 +26,7 @@ public abstract class APackageData implements IPackageData
 			Socket socket = new Socket();
 			InetSocketAddress endpoint;
 			System.out.println("conencting..");
-			endpoint = new InetSocketAddress(InetAddress.getByName("localhost"), Config.SERVER_PORT);
+			endpoint = new InetSocketAddress(InetAddress.getByName(Config.SERVER_ADDRESS), Config.SERVER_PORT);
 			socket.connect(endpoint);
 			System.out.println("connected!");
 			var inputStream = socket.getInputStream();

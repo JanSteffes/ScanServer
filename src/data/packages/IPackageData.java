@@ -3,6 +3,8 @@
  */
 package data.packages;
 
+import data.ServerAction;
+
 /**
  * @author JanSt
  * Interface for package data classes

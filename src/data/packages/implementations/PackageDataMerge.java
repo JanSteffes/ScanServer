@@ -1,10 +1,13 @@
 /**
  * 
  */
-package data.packages;
+package data.packages.implementations;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+
+import data.ServerAction;
+import data.packages.APackageData;
 
 /**
  * @author JanSt

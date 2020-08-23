@@ -17,8 +17,8 @@ import java.util.Date;
 
 import data.Config;
 import data.packages.IPackageData;
-import data.packages.PackageDataMerge;
-import data.packages.PackageDataScan;
+import data.packages.implementations.PackageDataMerge;
+import data.packages.implementations.PackageDataScan;
 
 /**
  * client tries to connect to server server (if no other client connected
@@ -242,7 +242,7 @@ public class Server {
 			}
 			scanResultBytes = out.toByteArray();
 			out.close();
-			var exitVal = scanProcess.waitFor();
+			scanProcess.waitFor();
 			scanProcess.destroy();
 			in.close();
 

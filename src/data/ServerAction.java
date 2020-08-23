@@ -1,4 +1,4 @@
-package data.packages;
+package data;
 
 public enum ServerAction {
 	ReadFiles,

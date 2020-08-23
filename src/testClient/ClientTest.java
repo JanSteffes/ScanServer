@@ -3,9 +3,9 @@ package testClient;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import data.packages.PackageDataList;
-import data.packages.PackageDataMerge;
-import data.packages.PackageDataScan;
+import data.packages.implementations.PackageDataList;
+import data.packages.implementations.PackageDataMerge;
+import data.packages.implementations.PackageDataScan;
 
 /** client tries to connect to server
 // server (if no other client connected already) accepts connection
@@ -40,7 +40,7 @@ public class ClientTest {
 			// merge
 			var filesToMerge = Arrays.copyOfRange(fileList, 0, 2);
 			var filestoMergeList = new ArrayList<String>(Arrays.asList(filesToMerge));
-			var mergeResult = new PackageDataMerge("ClientTest_Merge", filestoMergeList).Execute();
+			new PackageDataMerge("ClientTest_Merge", filestoMergeList).Execute();
 			
 			// and list again to validate
 			fileList = new PackageDataList().Execute().split(";");	
