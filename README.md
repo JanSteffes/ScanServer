@@ -23,17 +23,11 @@ OpenJDK Runtime Environment (build 1.8.0_232-8u232-b09-1~deb9u1-b09)
 OpenJDK Client VM (build 25.232-b09, mixed mode)
 
 ## Sample Clients:
-A sample implementation can be found in the project itself, see [ClientTest.java](https://github.com/JanSteffes/ScanServer/blob/master/src/testClient/ClientTest.java).
+Sample test/implementation of app-client (java) in used shared package [ScanData] (https://github.com/JanSteffes/SanData)
 
 Sample implementation of app-client (flutter): [scan_app](https://github.com/JanSteffes/scan_app)
 
 ## TODO
-* Maybe make this as rest-service instead of socket based (or even optional?)
-* refactor some code, all the commands should be easier reusable
-* move specific configs (like folder to work in) to Config
-* better/more specific logs?
-
-
-Sample implementation of client (flutter): [scan_app](https://github.com/JanSteffes/scan_app)
-
+* maybe make this as rest-service instead of socket based (or even optional?)
+* update system informations ;)
 
