@@ -13,9 +13,11 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Date;
 
 import data.Config;
+import data.ServerAction;
 import data.packages.IPackageData;
 import data.packages.implementations.PackageDataMerge;
 import data.packages.implementations.PackageDataScan;
@@ -58,24 +60,23 @@ public class Server {
 				clientSocket = ss.accept();
 				System.out.println("Client connected!");
 				// prepare streams
-				var writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
-				var inputStream = clientSocket.getInputStream();
-				var inReader = new ObjectInputStream(inputStream);
-				var data = (IPackageData) inReader.readObject();
-				var result = "failed";
-				var action = data.getAction();
+				BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
+				ObjectInputStream inReader = new ObjectInputStream(clientSocket.getInputStream());
+				IPackageData data = (IPackageData) inReader.readObject();
+				String result = "failed";
+				ServerAction action = data.getAction();
 				switch (action) {
 				case ReadFiles:
-					var readFilesResult = readFiles();
+					String[] readFilesResult = readFiles();
 					result = String.join(";", readFilesResult);
 					break;
 				case MergeFiles:
-					var mergeFileData = (PackageDataMerge) data;
-					var mergeResult = mergeFiles(mergeFileData);
+					PackageDataMerge mergeFileData = (PackageDataMerge) data;
+					boolean mergeResult = mergeFiles(mergeFileData);
 					result = "" + mergeResult;
 					break;
 				case Scan:
-					var scanFileData = (PackageDataScan) data;
+					PackageDataScan scanFileData = (PackageDataScan) data;
 					result = "" + scanToFile(scanFileData);
 					break;
 				}
@@ -107,18 +108,18 @@ public class Server {
 	private static boolean mergeFiles(PackageDataMerge mergeData) {
 		try {
 			
-			var fileNames = mergeData.filesToMerge;
-			var mergedFileName = mergeData.mergedFileName;
+			ArrayList<String> fileNames = mergeData.filesToMerge;
+			String mergedFileName = mergeData.mergedFileName;
 			if (notReal)
 			{
 				return true;
 			}
-			var targetDirPath = GetTargetDirPath();
-			var targetDir = targetDirPath.toFile();
+			Path targetDirPath = GetTargetDirPath();
+			File targetDir = targetDirPath.toFile();
 
 			// prepare files
-			var targetFilePath = Paths.get(targetDirPath.toString(), mergedFileName).toString();
-			var targetFile = new File(targetFilePath + ".pdf");
+			String targetFilePath = Paths.get(targetDirPath.toString(), mergedFileName).toString();
+			File targetFile = new File(targetFilePath + ".pdf");
 
 			// if file exist, rename
 			if (targetFile.exists()) {
@@ -133,15 +134,15 @@ public class Server {
 			// pdftk page1.pdf page2.pdf ... cat output result.pdf
 			String[] mergeCommand = { "pdftk", String.join(" ", fileNames) };
 			System.out.println("Will execute command: \"" + String.join(" ", mergeCommand) + "\"");
-			var pb = new ProcessBuilder();
+			ProcessBuilder pb = new ProcessBuilder();
 			Process mergeProcess;
 			mergeProcess = pb.directory(targetDir).command(mergeCommand).start();
 			// write result to file
-			var in = mergeProcess.getInputStream();
-			var out = new ByteArrayOutputStream();
+			InputStream in = mergeProcess.getInputStream();
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			byte[] mergeResultBytes;
-			var buffer = new byte[8 * 1024];
-			var bytesRead = 0;
+			byte[] buffer = new byte[8 * 1024];
+			int bytesRead = 0;
 			while ((bytesRead = in.read(buffer)) != -1) {
 				out.write(buffer, 0, bytesRead);
 			}
@@ -151,8 +152,8 @@ public class Server {
 			mergeProcess.destroy();
 			in.close();
 			System.out.println("writing result to file...");
-			var tempTiffFile = Paths.get(targetFile.getAbsolutePath()).toFile();
-			var fos = new FileOutputStream(tempTiffFile);
+			File tempTiffFile = Paths.get(targetFile.getAbsolutePath()).toFile();
+			FileOutputStream fos = new FileOutputStream(tempTiffFile);
 			fos.write(mergeResultBytes);
 			fos.flush();
 			fos.close();
@@ -173,7 +174,7 @@ public class Server {
 		
 		if (notReal)
 		{
-			var resultArray = new String[currentCounter++];
+			String[] resultArray = new String[currentCounter++];
 			for (int i = 0; i < resultArray.length; i++)
 			{
 				resultArray[i] = "Test_" + i;
@@ -181,11 +182,11 @@ public class Server {
 			return resultArray;
 		}
 		
-		var targetDirPath = GetTargetDirPath();
+		Path targetDirPath = GetTargetDirPath();
 		File targetDir = targetDirPath.toFile();
-		var files = targetDir.listFiles();
-		var fileNames = new String[files.length];
-		for (var fileIndex = 0; fileIndex < fileNames.length; fileIndex++) {
+		File[] files = targetDir.listFiles();
+		String[] fileNames = new String[files.length];
+		for (int fileIndex = 0; fileIndex < fileNames.length; fileIndex++) {
 			fileNames[fileIndex] = files[fileIndex].getName();
 		}
 		
@@ -201,15 +202,15 @@ public class Server {
 	private static boolean scanToFile(PackageDataScan scanData) {
 		try {
 			// read options from stream
-			var resolution = scanData.chosenOption;// * 150 + 150
-			var fileName = scanData.chosenName;
+			int resolution = scanData.chosenOption;// * 150 + 150
+			String fileName = scanData.chosenName;
 			
 			if (notReal)
 			{
 				return true;
 			}
 			
-			var targetDirPath = GetTargetDirPath();
+			Path targetDirPath = GetTargetDirPath();
 			File targetDir = targetDirPath.toFile();
 
 			// prepare files
@@ -297,7 +298,7 @@ public class Server {
 	private static Path GetTargetDirPath() {
 		// create target directory if not existing (folder with current date)
 		// preparations
-		var targetDirPath = Paths.get(System.getProperty("user.home"), "pi-share", "Scans",
+		Path targetDirPath = Paths.get(System.getProperty("user.home"), "pi-share", "Scans",
 				Config.dateFormat.format(new Date()));
 		File targetDir = targetDirPath.toFile();
 		if (!targetDir.exists()) {

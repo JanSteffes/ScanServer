@@ -25,7 +25,7 @@ public class ClientTest {
 		try {			
 						
 			// list
-			var fileList = new PackageDataList().Execute().split(";");
+			String[] fileList = new PackageDataList().Execute().split(";");
 			
 			// scan
 			new PackageDataScan(1, "ClientTest_Scan").Execute();
@@ -38,8 +38,8 @@ public class ClientTest {
 			}
 			
 			// merge
-			var filesToMerge = Arrays.copyOfRange(fileList, 0, 2);
-			var filestoMergeList = new ArrayList<String>(Arrays.asList(filesToMerge));
+			String[] filesToMerge = Arrays.copyOfRange(fileList, 0, 2);
+			ArrayList<String> filestoMergeList = new ArrayList<String>(Arrays.asList(filesToMerge));
 			new PackageDataMerge("ClientTest_Merge", filestoMergeList).Execute();
 			
 			// and list again to validate

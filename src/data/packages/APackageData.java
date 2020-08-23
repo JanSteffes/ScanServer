@@ -4,8 +4,10 @@
 package data.packages;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -29,8 +31,8 @@ public abstract class APackageData implements IPackageData
 			endpoint = new InetSocketAddress(InetAddress.getByName(Config.SERVER_ADDRESS), Config.SERVER_PORT);
 			socket.connect(endpoint);
 			System.out.println("connected!");
-			var inputStream = socket.getInputStream();
-			var outputStream = socket.getOutputStream();
+			InputStream inputStream = socket.getInputStream();
+			OutputStream outputStream = socket.getOutputStream();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
 			ObjectOutputStream writer = new ObjectOutputStream(outputStream);
 			System.out.println("sending list files request...");
