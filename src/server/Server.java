@@ -30,7 +30,13 @@ import data.packages.PackageDataScan;
  **/
 public class Server {
 
-	private static boolean notReal = true;
+	/**
+	 * Set to true for connection debug purposes (e.g. debugging client to server connection / data handling)
+	 */
+	private static boolean notReal = false;
+	/**
+	 * only used if notReal is set to return a list of fileNames
+	 */
 	private static int currentCounter = 0;
 	
 	public static void main(String[] args) {
