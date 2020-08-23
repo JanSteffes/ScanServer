@@ -22,6 +22,7 @@ import java.util.Date;
 import data.Config;
 import data.ServerAction;
 import data.packages.IPackageData;
+import data.packages.implementations.PackageDataDelete;
 import data.packages.implementations.PackageDataMerge;
 import data.packages.implementations.PackageDataScan;
 
@@ -89,6 +90,12 @@ public class Server {
 				case Scan:
 					PackageDataScan scanFileData = (PackageDataScan) data;
 					result = "" + scanToFile(scanFileData);
+					break;
+				case DeleteFiles:
+					PackageDataDelete deleteFileData = (PackageDataDelete) data;
+					result = "" + deleteFiles(deleteFileData);
+					break;
+				default:
 					break;
 				}
 				log("returning result of action " + action + " ...");
@@ -189,6 +196,31 @@ public class Server {
 			return false;
 		}
 
+	}
+	
+	private static boolean deleteFiles(PackageDataDelete data) {
+		if (notReal)
+		{
+			return true;
+		}
+		try
+		{
+			Path targetDirPath = GetTargetDirPath();
+			File targetDir = targetDirPath.toFile();
+			for(int fileIndex = 0; fileIndex < data.filesToDelete.size(); fileIndex++)
+			{			
+				String[] deleteCommands = {"rm", data.filesToDelete.get(fileIndex)};
+				log("Will execute command: \"" + String.join(" ", deleteCommands) + "\"");
+				ProcessBuilder pb = new ProcessBuilder();
+				pb.directory(targetDir).command(deleteCommands).start();
+			}
+			return true;
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+			return false;
+		}
 	}
 
 	/**

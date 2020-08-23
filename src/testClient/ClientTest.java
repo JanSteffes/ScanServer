@@ -3,6 +3,7 @@ package testClient;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import data.packages.implementations.PackageDataDelete;
 import data.packages.implementations.PackageDataList;
 import data.packages.implementations.PackageDataMerge;
 import data.packages.implementations.PackageDataScan;
@@ -44,6 +45,11 @@ public class ClientTest {
 			
 			// and list again to validate
 			fileList = new PackageDataList().Execute().split(";");	
+			
+		   ArrayList<String> filesToDelete = new ArrayList<String>();
+		   filesToDelete.add("test1");
+		   filesToDelete.add("test2");
+		   new PackageDataDelete(filesToDelete).Execute();		   
 			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
