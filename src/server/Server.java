@@ -3,8 +3,9 @@ package server;
 
 import data.Config;
 import data.ServerAction;
-import data.packages.*;
-import data.packages.implementations.*;
+import data.packages.interfaces.IPackageData;
+import data.packages.implementations.PackageData.*;
+import data.packages.implementations.PackageDataUpdate;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -12,10 +13,7 @@ import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -32,7 +30,7 @@ public class Server {
 	/**
 	 * Set to true for connection debug purposes (e.g. debugging client to server connection / data handling)
 	 */
-	private final static boolean notReal = false;
+	private final static boolean notReal = System.getProperty("os.name").toLowerCase().contains("windows");
 	/**
 	 * only used if notReal is set to return a list of fileNames
 	 */
@@ -62,7 +60,7 @@ public class Server {
 			try {
 				log("waiting for client..");
 				clientSocket = ss.accept();
-				log("Client connected!");
+				log("Client connected: " + clientSocket.getInetAddress().getCanonicalHostName());
 				// prepare streams
 				log("prepare streams..");
 				ObjectOutputStream writer = new ObjectOutputStream(clientSocket.getOutputStream());
@@ -91,32 +89,72 @@ public class Server {
 				ServerAction action = data.getAction();
 				log("Action: " + action.name());
 				switch (action) {
-				case ReadFiles:
-					result = readFiles();
-					break;
-				case MergeFiles:
-					PackageDataMerge mergeFileData = (PackageDataMerge) data;
-					result = mergeFiles(mergeFileData);
-					break;
-				case Scan:
-					PackageDataScan scanFileData = (PackageDataScan) data;
-					result = scanToFile(scanFileData);
-					break;
-				case DeleteFiles:
-					PackageDataDelete deleteFileData = (PackageDataDelete) data;
-					result = deleteFiles(deleteFileData);
-					break;
-				case CheckUpdate:
-					PackageDataUpdate updateData = (PackageDataUpdate) data;
-					result = updateCheck(updateData);
-					break;
-				case StreamFile:
-					PackageDataGetFile getFileData = (PackageDataGetFile) data;
-					result = getFile(getFileData);
-				default:
-					break;
+					case ReadFolders:
+						result = readFolders();
+						break;
+					case ReadFiles:
+						PackageDataListFiles listFileData = (PackageDataListFiles) data;
+						if (listFileData.folderName == null || listFileData.folderName.length() < 1)
+						{
+							String lastFolder = getLatestFolder();
+							listFileData.folderName = lastFolder;
+						}
+						result = readFiles(listFileData);
+						break;
+					case MergeFiles:
+						PackageDataMerge mergeFileData = (PackageDataMerge) data;
+						if (mergeFileData.folderName == null || mergeFileData.folderName.length() < 1)
+						{
+							String lastFolder = getLatestFolder();
+							mergeFileData.folderName = lastFolder;
+						}
+						result = mergeFiles(mergeFileData);
+						break;
+					case Scan:
+						PackageDataScan scanFileData = (PackageDataScan) data;
+						if (scanFileData.folderName == null || scanFileData.folderName.length() < 1)
+						{
+							String lastFolder = getLatestFolder();
+							scanFileData.folderName = lastFolder;
+						}
+						result = scanToFile(scanFileData);
+						break;
+					case DeleteFiles:
+						PackageDataDelete deleteFileData = (PackageDataDelete) data;
+						if (deleteFileData.folderName == null || deleteFileData.folderName.length() < 1)
+						{
+							var lastFolder = getLatestFolder();
+							deleteFileData.folderName = lastFolder;
+						}
+						result = deleteFiles(deleteFileData);
+						break;
+					case CheckUpdate:
+						PackageDataUpdateCheck updateCheckData = (PackageDataUpdateCheck) data;
+						result = updateCheck(updateCheckData);
+						break;
+					case GetUpdate:
+						PackageDataUpdate updateData = (PackageDataUpdate) data;
+						result = getUpdate(updateData);
+						break;
+					case StreamFile:
+						PackageDataGetFile getFileData = (PackageDataGetFile) data;
+						if (getFileData.folderName == null || getFileData.folderName.length() < 1)
+						{
+							var lastFolder = getLatestFolder();
+							getFileData.folderName = lastFolder;
+						}
+						result = getFile(getFileData);
+						break;
+					default:
+						break;
 				}
 				log("returning result of action " + action + " ...");
+				if (!clientSocket.getInetAddress().getCanonicalHostName().contains("Schaumi"))
+				{
+					var size = getSize(result);
+					log("with size " + size);
+					writer.writeInt(size);
+				}
 				writer.writeObject(result);
 				writer.flush();
 				log("disconnecting");
@@ -134,8 +172,39 @@ public class Server {
 		}
 	}
 
+	private static String getLatestFolder() throws Exception {
+		var folders = readFolders();
+		return folders[0];
+	}
+
+	private static int getSize(Object o) throws IOException {
+		if (o instanceof byte[])
+		{
+			byte[] a = (byte[]) o;
+			return a.length;
+		}
+		var byteArrayStream = new ByteArrayOutputStream();
+		var objectStream = new ObjectOutputStream(byteArrayStream);
+		objectStream.writeObject(o);
+		objectStream.flush();
+		var size = byteArrayStream.size();
+		return size;
+	}
+
+	private static String[] readFolders() throws Exception {
+		var foldersPath = GetTargetDirPath();
+		var folderEntries = foldersPath.toFile().listFiles();
+		if (folderEntries == null)
+		{
+			return null;
+		}
+		var array = Arrays.stream(folderEntries).filter(File::isDirectory).map(File::getName).toArray(String[]::new);
+		Arrays.sort(array, Collections.reverseOrder());
+		return array;
+	}
+
 	private static byte[] getFile(PackageDataGetFile getFileData) throws Exception {
-		var dirPath = GetTargetDirPath();
+		var dirPath = GetTargetDirPath(getFileData.folderName);
 		var filePath = Paths.get(dirPath.toString(), getFileData.fileName);
 		var file = filePath.toFile();
 		var inputStream = new FileInputStream(file);
@@ -160,7 +229,7 @@ public class Server {
 			{
 				return true;
 			}
-			Path targetDirPath = GetTargetDirPath();
+			Path targetDirPath = GetTargetDirPath(mergeData.folderName);
 			File targetDir = targetDirPath.toFile();
 
 			// prepare files
@@ -207,178 +276,6 @@ public class Server {
 
 	}
 
-	private static byte[] updateCheck(PackageDataUpdate data){
-		log("getting latest version..");
-		var latestFileVersion = notReal ? "" : GetLatestAppVersion();
-		log("latest version is: " + latestFileVersion);
-		if (latestFileVersion == null)
-		{
-			return null;
-		}
-		var updateNeeded = notReal || CompareVersions(latestFileVersion, data.version) > 0;
-		if (updateNeeded)
-		{
-			try {
-				var fileData = GetLatestAppVersionApkData();
-				if (fileData == null)
-				{
-					log("fileData is null, returning null..");
-					return null;
-				}
-				log("returning fileData: " + fileData.length + " bytes");
-				return fileData;
-			}
-			catch(Exception e)
-			{
-				log("Error while reading apk data. Returning null.");
-				return null;
-			}
-		}
-		else {
-			log("no update needed!");
-			return null;
-		}
-	}
-
-	/**
-	 * Overload for CompareVersions.
-	 * Has overhead, since it converts the int arrays to strings first ([1,2,3] to "1.2.3")
-	 * @param firstVersionParts first version(parts) to compare
-	 * @param secondVersionParts second version(parts) to compare
-	 * @return int value indicating if first or second is newer or both the same
-	 */
-	private static int CompareVersions(int[] firstVersionParts, int[] secondVersionParts)
-	{
-		return CompareVersions(String.join(".", Arrays.stream(firstVersionParts).mapToObj(String::valueOf).toArray(String[]::new)), String.join(".", Arrays.stream(secondVersionParts).mapToObj(String::valueOf).toArray(String[]::new)));
-	}
-
-	/**
-	 * Compare version strings.
-	 * Return 0 if same.
-	 * Return 1 if first is newer than second
-	 * Return -1 if first is older than second
-	 * @param first first to compare
-	 * @param second second to compare
-	 * @return int-value indicating result
-	 */
-	private static int CompareVersions(String first, String second)
-	{
-		log("Comparing versions "+ first + " and " + second);
-		if (first.equals(second))
-		{
-			log("They are same, returning 0");
-			// same
-			return 0;
-		}
-		var firstSplit = GetAppFileNameVersionParts(first);
-		var secondSplit = GetAppFileNameVersionParts(second);
-		// max index is min of one of them, since we can't compare 1.2.3.4 to 1.2.3, need to handle that after comparing previous parts
-		var maxIndex = Math.min(firstSplit.length, secondSplit.length);
-		// handle differences in versions like 1.2.8 and 2.0.0
-		for (var i = 0; i < maxIndex; i++)
-		{
-			var firstPart = firstSplit[i];
-			var secondPart = secondSplit[i];
-			if (firstPart > secondPart)
-			{
-				log("Part " + i + "(" + firstPart +") of first " + first + " is higher than ("+secondPart+") of second" + second);
-				// any version part is greater than current, like 2.0.0 is newer than 1.0.0
-				return 1;
-			}
-			else if (firstPart < secondPart)
-			{
-				log("Part " + i + "(" + firstPart +") of first " + first + " is lower than ("+secondPart+") of second" + second);
-				// case unlike other else, like 1.0.0 is older than 2.0.0
-				return -1;
-			}
-		}
-		// till here, versions are the same, now see if there's a subversion in one of them
-		if (firstSplit.length > secondSplit.length)
-		{
-			log("length of first " + first + " is longer than that of seconds "+ second);
-			// first is newer, since it has a subversion
-			return 1;
-		}
-		else
-		{
-			log("length of first " + first + " is lower than that of seconds "+ second);
-			// second is newer, since it has subversion
-			return -1;
-		}
-	}
-
-	private static byte[] GetLatestAppVersionApkData() throws IOException {
-		var latest = GetLatestAppVersionFile();
-		if (notReal || latest == null)
-		{
-			return null;
-		}
-		var fileInputStream = new FileInputStream(latest.getAbsolutePath());
-		var bytes = fileInputStream.readAllBytes();
-		fileInputStream.close();
-		return bytes;
-	}
-
-	private static File GetLatestAppVersionFile()
-	{
-		if (notReal)
-		{
-			return null;
-		}
-		log("get latest file..");
-		var appDir = GetAppDirPath();
-		var appDirFile = appDir.toFile();
-		if (appDirFile.listFiles() == null)
-		{
-			return null;
-		}
-		var filesStream = Arrays.stream(Objects.requireNonNull(appDirFile.listFiles()));
-		var orderedFiles = filesStream.sorted((o1, o2) -> CompareVersions(GetAppFileNameVersionParts(GetFileNameWithoutExtension(o2.getName())), GetAppFileNameVersionParts(GetFileNameWithoutExtension(o1.getName())))).collect(Collectors.toList());
-		log("files: " + orderedFiles.stream().map(File::getName).collect(Collectors.joining(", ")));
-		var latest = orderedFiles.get(0);
-		log("latest: " + latest.getName());
-		return latest;
-	}
-
-	private static String GetFileNameWithoutExtension(String fileName)
-	{
-		log("GetFileNameWithoutExtension of " + fileName);
-		var fileNameWithoutExtension = fileName.substring(0, fileName.lastIndexOf("."));
-		log("GetFileNameWithoutExtension: " + fileNameWithoutExtension);
-		return fileNameWithoutExtension;
-	}
-
-	/**
-	 * fileName has to be without extensions
-	 * @param fileNameWithoutExtension file name without extension like "ScanApp-1.2.3" instead of "ScanApp-1.2.3.apk"
-	 * @return version part (1.2.3) as int array
-	 */
-	private static int[] GetAppFileNameVersionParts(String fileNameWithoutExtension)
-	{
-		log("Get version part of " + fileNameWithoutExtension);
-		String[] splitBySeparator = fileNameWithoutExtension.split("-");
-		String fileNameVersionParts;
-		if (splitBySeparator.length > 1)
-		{
-			fileNameVersionParts = splitBySeparator[1];
-		}
-		else
-		{
-			fileNameVersionParts = splitBySeparator[0];
-		}
-		return Arrays.stream(fileNameVersionParts.split("\\.")).mapToInt(Integer::parseInt).toArray();
-
-	}
-
-	private static String GetLatestAppVersion() {
-		var latest = GetLatestAppVersionFile();
-		if (latest == null)
-		{
-			return null;
-		}
-		var fileNameWithoutExtension = GetFileNameWithoutExtension(latest.getName());
-		return fileNameWithoutExtension.split("-")[1];
-	}
 
 	private static boolean deleteFiles(PackageDataDelete data) {
 		if (notReal)
@@ -387,7 +284,7 @@ public class Server {
 		}
 		try
 		{
-			Path targetDirPath = GetTargetDirPath();
+			Path targetDirPath = GetTargetDirPath(data.folderName);
 			File targetDir = targetDirPath.toFile();
 			for(int fileIndex = 0; fileIndex < data.filesToDelete.size(); fileIndex++)
 			{			
@@ -410,8 +307,9 @@ public class Server {
 	 * 
 	 * @return String array of fileNames contained in current folder
 	 */
-	private static String[] readFiles() throws Exception {
-		Path targetDirPath = GetTargetDirPath();
+	private static String[] readFiles(PackageDataListFiles data) throws Exception {
+		log("Foldername: " + data.folderName);
+		Path targetDirPath = GetTargetDirPath(data.folderName);
 		log("trying to read from '" + targetDirPath.toString() + "' ...");
 		File targetDir = targetDirPath.toFile();
 		File[] files = targetDir.listFiles();
@@ -444,8 +342,8 @@ public class Server {
 			{
 				return true;
 			}
-			
-			Path targetDirPath = GetTargetDirPath();
+
+			Path targetDirPath = GetTargetDirPath(scanData.folderName);
 			File targetDir = targetDirPath.toFile();
 
 			// prepare files
@@ -536,11 +434,14 @@ public class Server {
 	 * 
 	 * @return path to current files
 	 */
-	private static Path GetTargetDirPath() throws Exception {
+	private static Path GetTargetDirPath(String folderName) throws Exception {
 		// create target directory if not existing (folder with current date)
 		// preparations
-		Path targetDirPath = Paths.get(GetBaseFilesPath().toString(), "Scans",
-				Config.dateFormat.format(new Date()));
+		Path targetDirPath = Paths.get(GetBaseFilesPath().toString(), "Scans");
+		if (folderName != null)
+		{
+			targetDirPath = Paths.get(targetDirPath.toString(), folderName);
+		}
 		File targetDir = targetDirPath.toFile();
 		if (!targetDir.exists()) {
 			if (!targetDir.mkdir())
@@ -551,8 +452,8 @@ public class Server {
 		return targetDirPath;
 	}
 
-	private static Path GetAppDirPath() {
-		return Paths.get(GetBaseFilesPath().toString(), "Apps", "ScanApp");
+	private static Path GetTargetDirPath() throws Exception {
+		return GetTargetDirPath(null);
 	}
 
 	private static Path GetBaseFilesPath()
@@ -568,4 +469,185 @@ public class Server {
 		return path;
 
 	}
+
+
+	// region AppUpdate
+
+	private static boolean updateCheck(PackageDataUpdateCheck data){
+		//log("getting latest version..");
+		var latestFileVersion = GetLatestAppVersion();
+		log("updateCheck for version "+ data.version + ", latest version is: " + latestFileVersion);
+		if (latestFileVersion == null)
+		{
+			return false;
+		}
+		var updateNeeded = CompareVersions(latestFileVersion, data.version) > 0;
+		return updateNeeded;
+	}
+
+	private static byte[] getUpdate(PackageDataUpdate data) {
+		if (updateCheck(new PackageDataUpdateCheck(data.version)))
+		{
+			try {
+				var fileData = GetLatestAppVersionApkData();
+				if (fileData == null)
+				{
+					log("fileData is null, returning null..");
+					return null;
+				}
+				log("returning fileData: " + fileData.length + " bytes");
+				return fileData;
+			}
+			catch(Exception e)
+			{
+				log("Error while reading apk data. Returning null.");
+				return null;
+			}
+		}
+		else {
+			log("no update needed!");
+			return null;
+		}
+	}
+
+	/**
+	 * Overload for CompareVersions.
+	 * Has overhead, since it converts the int arrays to strings first ([1,2,3] to "1.2.3")
+	 * @param firstVersionParts first version(parts) to compare
+	 * @param secondVersionParts second version(parts) to compare
+	 * @return int value indicating if first or second is newer or both the same
+	 */
+	private static int CompareVersions(int[] firstVersionParts, int[] secondVersionParts)
+	{
+		return CompareVersions(String.join(".", Arrays.stream(firstVersionParts).mapToObj(String::valueOf).toArray(String[]::new)), String.join(".", Arrays.stream(secondVersionParts).mapToObj(String::valueOf).toArray(String[]::new)));
+	}
+
+	/**
+	 * Compare version strings.
+	 * Return 0 if same.
+	 * Return 1 if first is newer than second
+	 * Return -1 if first is older than second
+	 * @param first first to compare
+	 * @param second second to compare
+	 * @return int-value indicating result
+	 */
+	private static int CompareVersions(String first, String second)
+	{
+		//log("Comparing versions "+ first + " and " + second);
+		if (first.equals(second))
+		{
+			//log("They are same, returning 0");
+			// same
+			return 0;
+		}
+		var firstSplit = GetAppFileNameVersionParts(first);
+		var secondSplit = GetAppFileNameVersionParts(second);
+		// max index is min of one of them, since we can't compare 1.2.3.4 to 1.2.3, need to handle that after comparing previous parts
+		var maxIndex = Math.min(firstSplit.length, secondSplit.length);
+		// handle differences in versions like 1.2.8 and 2.0.0
+		for (var i = 0; i < maxIndex; i++)
+		{
+			var firstPart = firstSplit[i];
+			var secondPart = secondSplit[i];
+			if (firstPart > secondPart)
+			{
+				//log("Part " + i + "(" + firstPart +") of first " + first + " is higher than ("+secondPart+") of second" + second);
+				// any version part is greater than current, like 2.0.0 is newer than 1.0.0
+				return 1;
+			}
+			else if (firstPart < secondPart)
+			{
+				//log("Part " + i + "(" + firstPart +") of first " + first + " is lower than ("+secondPart+") of second" + second);
+				// case unlike other else, like 1.0.0 is older than 2.0.0
+				return -1;
+			}
+		}
+		// till here, versions are the same, now see if there's a subversion in one of them
+		if (firstSplit.length > secondSplit.length)
+		{
+			//log("length of first " + first + " is longer than that of seconds "+ second);
+			// first is newer, since it has a subversion
+			return 1;
+		}
+		else
+		{
+			//log("length of first " + first + " is lower than that of seconds "+ second);
+			// second is newer, since it has subversion
+			return -1;
+		}
+	}
+
+	private static byte[] GetLatestAppVersionApkData() throws IOException {
+		var latest = GetLatestAppVersionFile();
+		if (latest == null)
+		{
+			return null;
+		}
+		var fileInputStream = new FileInputStream(latest.getAbsolutePath());
+		log("loading data..");
+		var bytes = fileInputStream.readAllBytes();
+		fileInputStream.close();
+		log("finished loading data!");
+		return bytes;
+	}
+
+	private static File GetLatestAppVersionFile()
+	{
+		log("get latest file..");
+		var appDir = GetAppDirPath();
+		var appDirFile = appDir.toFile();
+		if (appDirFile.listFiles() == null)
+		{
+			return null;
+		}
+		var filesStream = Arrays.stream(Objects.requireNonNull(appDirFile.listFiles()));
+		var orderedFiles = filesStream.sorted((o1, o2) -> CompareVersions(GetAppFileNameVersionParts(GetFileNameWithoutExtension(o2.getName())), GetAppFileNameVersionParts(GetFileNameWithoutExtension(o1.getName())))).collect(Collectors.toList());
+		//log("files: " + orderedFiles.stream().map(File::getName).collect(Collectors.joining(", ")));
+		var latest = orderedFiles.get(0);
+		log("latest: " + latest.getName());
+		return latest;
+	}
+
+	private static String GetFileNameWithoutExtension(String fileName)
+	{
+		return fileName.substring(0, fileName.lastIndexOf("."));
+	}
+
+	/**
+	 * fileName has to be without extensions
+	 * @param fileNameWithoutExtension file name without extension like "ScanApp-1.2.3" instead of "ScanApp-1.2.3.apk"
+	 * @return version part (1.2.3) as int array
+	 */
+	private static int[] GetAppFileNameVersionParts(String fileNameWithoutExtension)
+	{
+		//log("Get version part of " + fileNameWithoutExtension);
+		String[] splitBySeparator = fileNameWithoutExtension.split("-");
+		String fileNameVersionParts;
+		if (splitBySeparator.length > 1)
+		{
+			fileNameVersionParts = splitBySeparator[1];
+		}
+		else
+		{
+			fileNameVersionParts = splitBySeparator[0];
+		}
+		return Arrays.stream(fileNameVersionParts.split("\\.")).mapToInt(Integer::parseInt).toArray();
+
+	}
+
+	private static String GetLatestAppVersion() {
+		var latest = GetLatestAppVersionFile();
+		if (latest == null)
+		{
+			return null;
+		}
+		var fileNameWithoutExtension = GetFileNameWithoutExtension(latest.getName());
+		return fileNameWithoutExtension.split("-")[1];
+	}
+
+
+	private static Path GetAppDirPath() {
+		return Paths.get(GetBaseFilesPath().toString(), "Apps", "ScanApp");
+	}
+	// endregion AppUpdate
 }
