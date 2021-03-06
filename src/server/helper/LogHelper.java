@@ -1,5 +1,7 @@
 package server.helper;
 
+import data.Config;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -21,7 +23,7 @@ public class LogHelper {
     public static void log(String message)
     {
         message = LogDateFormat.format(new Date()) + " " + message;
-        if (EnvironmentHelper.isDebug())
+        if (Config.getDebug())
         {
             message = "[DEBUG] " + message;
         }

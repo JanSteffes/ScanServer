@@ -42,9 +42,10 @@ public class Server {
 	 * @param args args to start server with. Only one allowed currently: if server should be in debug or not debug mode. Default is debug.
 	 */
 	public static void main(String[] args) {
+		log("Arguments: " + String.join(", ", args));
 		if (args.length > 0)
 		{
-			if (args[0].toLowerCase(Locale.ROOT) == "debug")
+			if (args[0].toLowerCase(Locale.ROOT).equals("debug"))
 			{
 				Config.switchDebug();
 			}
@@ -67,13 +68,13 @@ public class Server {
 				clientSocket = ss.accept();
 				log("Client connected: " + clientSocket.getInetAddress().getCanonicalHostName());
 				// prepare streams
-				log("prepare streams..");
+				//log("prepare streams..");
 				ObjectOutputStream writer = new ObjectOutputStream(clientSocket.getOutputStream());
-				log("prepare reader...");
+				//log("prepare reader...");
 				var clientInputStream = clientSocket.getInputStream();
-				log("got stream...");
+				//log("got stream...");
 				ObjectInputStream inReader = new ObjectInputStream(clientInputStream);
-				log("reading data..");
+				//log("reading data..");
 				IPackageData data;
 				try {
 					data = (IPackageData) inReader.readObject();
@@ -90,7 +91,7 @@ public class Server {
 					continue;
 				}
 				Object result = "failed";
-				log("getting action...");
+				//log("getting action...");
 				ServerAction action = data.getAction();
 				log("Action: " + action.name());
 				switch (action) {
@@ -121,9 +122,9 @@ public class Server {
 					default:
 						break;
 				}
-				log("returning result of action " + action + " ...");
+				//log("returning result of action " + action + " ...");
 				var size = getSize(result);
-				log("with size " + size);
+				//log("with size " + size);
 				writer.writeInt(size);
 				writer.writeObject(result);
 				writer.flush();

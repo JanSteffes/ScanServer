@@ -1,7 +1,7 @@
 package server.actions;
 
 import data.packages.implementations.PackageData.PackageDataUpdateCheck;
-import data.packages.implementations.PackageDataUpdate;
+import data.packages.implementations.PackageData.PackageDataUpdate;
 import data.packages.interfaces.IPackageData;
 import server.helper.FileHelper;
 import server.helper.PathHelper;

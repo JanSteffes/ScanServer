@@ -127,10 +127,13 @@ public class FileActions  extends BaseAction {
         {
             for(int fileIndex = 0; fileIndex < deleteFileData.filesToDelete.size(); fileIndex++)
             {
-                var currentFilePath = Paths.get(deleteFileData.folderName, deleteFileData.filesToDelete.get(fileIndex));
-                log("Will try to delete file at '" + currentFilePath + "'");
+                var currentFilePath = Paths.get(PathHelper.getTargetDirPath(deleteFileData.folderName).toString(), deleteFileData.filesToDelete.get(fileIndex));
                 var currentFile = currentFilePath.toFile();
                 result &= currentFile.delete();
+                if (!result)
+                {
+                    log("Failed to delete file " + currentFilePath);
+                }
             }
             return result;
         }
