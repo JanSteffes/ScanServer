@@ -16,11 +16,15 @@ public class LogHelper {
 
     /**
      * Log message formatted with current date and time
-     * @param message
+     * @param message message to log
      */
     public static void log(String message)
     {
         message = LogDateFormat.format(new Date()) + " " + message;
+        if (EnvironmentHelper.isDebug())
+        {
+            message = "[DEBUG] " + message;
+        }
         System.out.println(message);
     }
 }

@@ -15,6 +15,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Locale;
 
 
 /**
@@ -38,12 +39,19 @@ public class Server {
 
 	/**
 	 * Main execution point.
-	 * @param args args to start server with
+	 * @param args args to start server with. Only one allowed currently: if server should be in debug or not debug mode. Default is debug.
 	 */
 	public static void main(String[] args) {
+		if (args.length > 0)
+		{
+			if (args[0].toLowerCase(Locale.ROOT) == "debug")
+			{
+				Config.switchDebug();
+			}
+		}
 		ServerSocket ss = null;
 		try {
-			ss = new ServerSocket(Config.SERVER_PORT);
+			ss = new ServerSocket(Config.getPort());
 			log("Server running");
 
 		} catch (Exception e) {
@@ -89,6 +97,12 @@ public class Server {
 					case ReadFolders:
 						result = PathHelper.readFolders();
 						break;
+					case CheckUpdate:
+						result = UpdateActions.updateCheck(data);
+						break;
+					case GetUpdate:
+						result = UpdateActions.getUpdate(data);
+						break;
 					case ReadFiles:
 						result = FileActions.readFiles(data);
 						break;
@@ -100,12 +114,6 @@ public class Server {
 						break;
 					case DeleteFiles:
 						result = FileActions.deleteFiles(data);
-						break;
-					case CheckUpdate:
-						result = UpdateActions.updateCheck(data);
-						break;
-					case GetUpdate:
-						result = UpdateActions.getUpdate(data);
 						break;
 					case StreamFile:
 						result = FileActions.getFile(data);
@@ -152,13 +160,4 @@ public class Server {
 		objectStream.flush();
 		return byteArrayStream.size();
 	}
-
-
-
-
-
-	// region AppUpdate
-
-
-	// endregion AppUpdate
 }
