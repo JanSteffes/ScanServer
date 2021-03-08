@@ -9,6 +9,8 @@ import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.stream.Collectors;
 
 /**
  * All actions regarding files
@@ -52,20 +54,21 @@ public class FileActions  extends BaseAction {
      * @param data contains which files to merge to which file in their current order
      * @return boolean indicating if everything worked or not
      */
-    public static boolean mergeFiles(IPackageData data) {
+    public static boolean mergeFiles(IPackageData data) throws Exception {
         var mergeData = (PackageDataMerge) data;
+        if (mergeData.folderName == null || mergeData.folderName.length() < 1)
+        {
+            mergeData.folderName = PathHelper.getLatestFolder();
+        }
         try {
-
-            ArrayList<String> fileNames = mergeData.filesToMerge;
-
+            Path targetDirPath = PathHelper.getTargetDirPath(mergeData.folderName);
+            var filePaths = mergeData.filesToMerge.stream().map(f -> Paths.get(targetDirPath.toString(), f).toString()).collect(Collectors.toList());
             String mergedFileName = mergeData.mergedFileName;
             if (!isReal())
             {
                 return true;
             }
-            Path targetDirPath = PathHelper.getTargetDirPath(mergeData.folderName);
             File targetDir = targetDirPath.toFile();
-
             // prepare files
             String targetFilePath = Paths.get(targetDirPath.toString(), mergedFileName).toString();
             File targetFile = new File(targetFilePath + ".pdf");
@@ -83,10 +86,10 @@ public class FileActions  extends BaseAction {
             // pdftk page1.pdf page2.pdf ... cat output result.pdf
             ArrayList<String> mergeCommandsList = new ArrayList<>();
             mergeCommandsList.add("pdftk");
-            mergeCommandsList.addAll(fileNames);
+            mergeCommandsList.addAll(filePaths);
             mergeCommandsList.add("cat");
             mergeCommandsList.add("output");
-            mergeCommandsList.add(targetFile.getName());
+            mergeCommandsList.add(targetFile.getAbsolutePath());
             String[] mergeCommands =mergeCommandsList.toArray(new String[0]);
 
             log("Will execute command: \"" + String.join(" ", mergeCommands) + "\"");
@@ -178,11 +181,11 @@ public class FileActions  extends BaseAction {
      * @param data detailed data of how to scan to what file
      * @return false if exception happened, true if not
      */
-    public static boolean scanToFile(IPackageData data) throws Exception {
+    public static boolean scanToFile(IPackageData data) {
         PackageDataScan scanData = (PackageDataScan) data;
         if (scanData.folderName == null || scanData.folderName.length() < 1)
         {
-            scanData.folderName = PathHelper.getLatestFolder();
+            scanData.folderName = PathHelper.FolderDateFormat.format(new Date());
         }
         try {
             // read options from stream

@@ -3,6 +3,7 @@ package server.helper;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -11,6 +12,7 @@ import java.util.Collections;
  */
 public class PathHelper {
 
+    public final static SimpleDateFormat FolderDateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
     /**
      * Return main working directory
