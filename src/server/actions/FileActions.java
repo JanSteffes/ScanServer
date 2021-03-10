@@ -189,7 +189,7 @@ public class FileActions  extends BaseAction {
         }
         try {
             // read options from stream
-            int resolution = scanData.chosenOption;// * 150 + 150
+            int resolution = scanData.chosenOption  * 150 + 150;
             String fileName = scanData.chosenName;
 
             if (EnvironmentHelper.isDebug())
