@@ -213,41 +213,50 @@ public class FileActions  extends BaseAction {
                 }
             }
 
+            // prepare raw file
+            String tempTargetFilePath = targetFilePath + "_temp.tiff";
+            File targetRawTempFile = new File(tempTargetFilePath);
+            if (targetRawTempFile.exists())
+            {
+                targetRawTempFile.delete();
+            }
+
             // scan
-            @SuppressWarnings("SpellCheckingInspection")
-            String[] scanCommand = { "scanimage", "--format=tiff", "--resolution", "" + resolution };
+            String[] scanCommand = { "scanimage", "--format=tiff", "--resolution", "" + resolution, "> " + targetFile.getName()};
             log("Will execute command: \"" + String.join(" ", scanCommand) + "\"");
             ProcessBuilder pb = new ProcessBuilder();
             Process scanProcess;
             scanProcess = pb.directory(targetDir).command(scanCommand).start();
             // write result to file
-            InputStream in = scanProcess.getInputStream();
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] scanResultBytes;
-            byte[] buffer = new byte[8 * 1024];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-            }
-            scanResultBytes = out.toByteArray();
-            out.close();
+            //InputStream in = scanProcess.getInputStream();
+//            ByteArrayOutputStream out = new ByteArrayOutputStream();
+//            byte[] scanResultBytes;
+//            byte[] buffer = new byte[8 * 1024];
+//            int bytesRead;
+//            while ((bytesRead = in.read(buffer)) != -1) {
+//                out.write(buffer, 0, bytesRead);
+//            }
+//            scanResultBytes = out.toByteArray();
+//            out.close();
             scanProcess.waitFor();
             scanProcess.destroy();
-            in.close();
 
-            // write to tiff
-            log("writing result to file...");
-            File tempTiffFile = Paths.get(targetFilePath + "_temp.tiff").toFile();
-            FileOutputStream fos = new FileOutputStream(tempTiffFile);
-            fos.write(scanResultBytes);
-            fos.flush();
-            fos.close();
+
+//            // write to tiff
+//            log("writing result to file...");
+//            File tempTiffFile = Paths.get(targetFilePath + "_temp.tiff").toFile();
+//            FileOutputStream fos = new FileOutputStream(tempTiffFile);
+//            //in.transferTo(fos);
+//            //fos.write(scanResultBytes);
+//            fos.flush();
+//            fos.close();
+//            in.close();
 
             // convert to pdf
             log("converting file to pdf...");
             File targetTempPdfFile = new File(targetFilePath + "_temp.pdf");
             String[] pdfConvertCommand = { "tiff2pdf", "-o", targetTempPdfFile.getAbsolutePath(),
-                    tempTiffFile.getAbsolutePath() };
+                    targetRawTempFile.getAbsolutePath() };
             log("Will execute command: \"" + String.join(" ", pdfConvertCommand) + "\"");
             Process convertProcess = pb.command(pdfConvertCommand).start();
             convertProcess.waitFor();
@@ -271,7 +280,7 @@ public class FileActions  extends BaseAction {
             log("Deleting temp files...");
             boolean deletion = targetTempPsFile.delete();
             deletion = deletion & targetTempPdfFile.delete();
-            deletion = deletion & tempTiffFile.delete();
+            deletion = deletion & targetRawTempFile.delete();
             if (!deletion)
             {
                 log("At least one file failed to delete!");

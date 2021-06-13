@@ -9,10 +9,7 @@ import server.actions.UpdateActions;
 import server.helper.LogHelper;
 import server.helper.PathHelper;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Locale;
@@ -50,9 +47,78 @@ public class Server {
 				Config.switchDebug();
 			}
 		}
+		// start default stuff
+		var defaultThread = new Thread(() -> StartDefaultPort());
+		defaultThread.start();
+
+		// start other stuff
+		var otherThread = new Thread(() -> StartOtherPort());
+		otherThread.start();
+
+		while (defaultThread.isAlive() || otherThread.isAlive())
+		{
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private static void StartOtherPort()
+	{
 		ServerSocket ss = null;
 		try {
-			ss = new ServerSocket(Config.getPort());
+			ss = new ServerSocket(1233);
+			log("Server running");
+
+		} catch (Exception e) {
+			log("Failure!");
+			System.exit(1);
+		}
+
+		while (true)
+		{
+			Socket clientSocket = null;
+			try {
+				clientSocket = ss.accept();
+				var clientInputStream = clientSocket.getInputStream();
+				var streamReader = new InputStreamReader(clientInputStream);
+				var bufferedReader = new BufferedReader(streamReader);
+				var line = bufferedReader.readLine();
+				log("read line: " + line);
+				bufferedReader.close();
+				streamReader.close();
+				clientInputStream.close();
+				clientSocket.close();
+			}
+			catch(Exception e)
+			{
+				log("failed to read data!");
+				log(e.toString());
+				log("message:");
+				log(e.getMessage());
+				log("stacktrace:");
+				e.printStackTrace();
+				try {
+					clientSocket.close();
+				}
+				catch(Exception ex)
+				{
+					log("failed to close clientsocket: " + ex.getMessage());
+				}
+				continue;
+			}
+
+		}
+	}
+
+
+	private static void StartDefaultPort()
+	{
+		ServerSocket ss = null;
+		try {
+			ss = new ServerSocket(1234);
 			log("Server running");
 
 		} catch (Exception e) {
