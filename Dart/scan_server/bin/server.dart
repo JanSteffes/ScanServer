@@ -27,7 +27,7 @@ void main(List<String> args) async {
       .addHandler(_echoRequest);
 
   var server = await io.serve(handler, _hostname, port);
-  print('Serving at http://${server.address.host}:${server.port}');
+  print('Serving at https://${server.address.host}:${server.port}');
 }
 
 shelf.Response _echoRequest(shelf.Request request) =>
