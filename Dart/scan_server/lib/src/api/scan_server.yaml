@@ -1,0 +1,75 @@
+openapi: 3.0.0
+info:
+  version: 0.0.1
+  title: Scan Server API
+  x-dart-name: ScanServer
+
+paths:
+  /updates/checkUpdate/{version}:
+    parameters:
+      - name: version
+        description: current version to check against
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: check if there's an update available for the app, depending on {version}
+      responses:
+        '204':
+          description: No Update available
+        '200':
+          description: Update available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateResponseCheck'
+  /update/loadUpdate/{version}:
+    parameters:
+      - name: version
+        description: current version to check against
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: check if there's an update available for the app, depending on {version} and return the apk file if so
+      responses:
+        '204':
+          description: No Update available
+        '200':
+          description: Update available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateResponseReturn'    
+components:
+  schemas:
+    UpdateResponseBase:
+       type: object
+      properties:
+        available_version:
+          type: string
+          description: 'Available newer version code'
+        apk_size:
+          type: int
+          description: 'Size of update file'
+      required:
+        - available_version
+        - apk_size
+    UpdateResponseCheck:
+      allOf:
+        - $ref: '#/components/schemas/UpdateResponseBase'
+    UpdateResponseReturn:
+      allOf:
+        - $ref: '#/components/schemas/UpdateResponseBase'
+        - type: object
+      type: object
+      properties:
+        apk_file:
+          type: file
+          description: 'APK file of the new version'
+      required:
+        - apk_file
+      
+        
